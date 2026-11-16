@@ -2,15 +2,17 @@ import { createContext, useContext } from 'react'
 import type {
   Book,
   BookPatch,
+  GroupPatch,
   LibraryData,
   LinkPatch,
   NodePatch,
+  StoryGroup,
   StoryLink,
   StoryNode,
 } from '../types'
 import type { SaveStatus } from '../lib/sync'
 
-export type { BookPatch, LinkPatch, NodePatch }
+export type { BookPatch, GroupPatch, LinkPatch, NodePatch }
 
 export type Action =
   | { type: 'hydrate'; data: LibraryData }
@@ -23,6 +25,9 @@ export type Action =
   | { type: 'addLink'; bookId: string; link: StoryLink }
   | { type: 'updateLink'; bookId: string; id: string; patch: LinkPatch }
   | { type: 'deleteLink'; bookId: string; id: string }
+  | { type: 'addGroup'; bookId: string; group: StoryGroup }
+  | { type: 'updateGroup'; bookId: string; id: string; patch: GroupPatch }
+  | { type: 'deleteGroup'; bookId: string; id: string }
 
 function withBook(state: LibraryData, bookId: string, fn: (book: Book) => Book): LibraryData {
   return {
@@ -65,6 +70,20 @@ export function libraryReducer(state: LibraryData, action: Action): LibraryData 
       return withBook(state, action.bookId, (b) => ({
         ...b,
         links: b.links.filter((l) => l.id !== action.id),
+      }))
+    case 'addGroup':
+      return withBook(state, action.bookId, (b) => ({ ...b, groups: [...b.groups, action.group] }))
+    case 'updateGroup':
+      return withBook(state, action.bookId, (b) => ({
+        ...b,
+        groups: b.groups.map((g) => (g.id === action.id ? { ...g, ...action.patch } : g)),
+      }))
+    case 'deleteGroup':
+      // Members stay on the web, just ungrouped (the server does the same).
+      return withBook(state, action.bookId, (b) => ({
+        ...b,
+        groups: b.groups.filter((g) => g.id !== action.id),
+        nodes: b.nodes.map((n) => (n.groupId === action.id ? { ...n, groupId: null } : n)),
       }))
   }
 }

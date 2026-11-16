@@ -1,7 +1,20 @@
 import { useCallback, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
 import { readLegacyLibrary, retireLegacyLibrary } from '../lib/legacy'
 import { createSync, type SaveStatus } from '../lib/sync'
+import type { LibraryData } from '../types'
 import { LibraryContext, isLibraryData, libraryReducer, type Action, type LoadState } from './library'
+
+/** Fill in fields added after a library was first saved (e.g. groups), so the UI can rely on them. */
+function normalize(data: LibraryData): LibraryData {
+  return {
+    ...data,
+    books: data.books.map((b) => ({
+      ...b,
+      groups: b.groups ?? [],
+      nodes: b.nodes.map((n) => ({ ...n, groupId: n.groupId ?? null })),
+    })),
+  }
+}
 
 export function LibraryProvider({ children }: { children: ReactNode }) {
   const [state, localDispatch] = useReducer(libraryReducer, { version: 1, books: [] })
@@ -32,13 +45,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           })
           if (put.ok) {
             retireLegacyLibrary()
-            if (!cancelled) localDispatch({ type: 'hydrate', data: legacy })
+            if (!cancelled) localDispatch({ type: 'hydrate', data: normalize(legacy) })
           } else {
             console.warn('[storyweb] could not migrate browser data', await put.text())
-            if (!cancelled) localDispatch({ type: 'hydrate', data })
+            if (!cancelled) localDispatch({ type: 'hydrate', data: normalize(data) })
           }
         } else {
-          localDispatch({ type: 'hydrate', data })
+          localDispatch({ type: 'hydrate', data: normalize(data) })
         }
         if (!cancelled) setLoadState('ready')
       } catch (err) {

@@ -4,9 +4,11 @@ import {
   NODE_KINDS,
   type Book,
   type BookPatch,
+  type GroupPatch,
   type LibraryData,
   type LinkPatch,
   type NodePatch,
+  type StoryGroup,
   type StoryLink,
   type StoryNode,
 } from '../src/types.ts'
@@ -41,6 +43,12 @@ function id(v: unknown, field = 'id'): string {
   return s
 }
 
+/** An id, or null to clear it. Missing → fallback. */
+function optionalId(v: unknown, field: string, fallback: string | null = null): string | null {
+  if (v === undefined || v === null) return v === null ? null : fallback
+  return id(v, field)
+}
+
 function oneOf<T extends string>(v: unknown, list: readonly T[], field: string, fallback?: T): T {
   if (v === undefined && fallback !== undefined) return fallback
   if (typeof v !== 'string' || !(list as readonly string[]).includes(v)) {
@@ -65,7 +73,7 @@ function patchOf<T>(body: unknown, fields: { [K in keyof T]-?: (v: unknown) => T
   const b = obj(body, 'patch')
   const out: Partial<T> = {}
   for (const key of Object.keys(fields) as (keyof T)[]) {
-    if (b[key as string] !== undefined) out[key] = fields[key](b[key as string])
+    if (b[key as string] !== undefined) out[key] = fields[key](b[key as string]) // null is allowed through (clears a value)
   }
   if (Object.keys(out).length === 0) throw new HttpError(400, 'nothing to update')
   return out as T
@@ -84,6 +92,7 @@ export function parseNode(body: unknown): StoryNode {
     firstSeen: text(b.firstSeen, 'firstSeen', LIMITS.short, ''),
     notes: text(b.notes, 'notes', LIMITS.notes, ''),
     mark: text(b.mark, 'mark', LIMITS.style, 'solid'),
+    groupId: optionalId(b.groupId, 'groupId'),
     position: b.position === undefined ? { x: 0, y: 0 } : position(b.position),
     createdAt: num(b.createdAt, 'createdAt', now),
   }
@@ -97,7 +106,27 @@ export function parseNodePatch(body: unknown): NodePatch {
     firstSeen: (v) => text(v, 'firstSeen', LIMITS.short),
     notes: (v) => text(v, 'notes', LIMITS.notes),
     mark: (v) => text(v, 'mark', LIMITS.style),
+    groupId: (v) => optionalId(v, 'groupId'),
     position,
+  })
+}
+
+export function parseGroup(body: unknown): StoryGroup {
+  const b = obj(body, 'group')
+  return {
+    id: id(b.id),
+    name: text(b.name, 'name', LIMITS.name, ''),
+    notes: text(b.notes, 'notes', LIMITS.notes, ''),
+    style: text(b.style, 'style', LIMITS.style, 'soft'),
+    createdAt: num(b.createdAt, 'createdAt', Date.now()),
+  }
+}
+
+export function parseGroupPatch(body: unknown): GroupPatch {
+  return patchOf<GroupPatch>(body, {
+    name: (v) => text(v, 'name', LIMITS.name),
+    notes: (v) => text(v, 'notes', LIMITS.notes),
+    style: (v) => text(v, 'style', LIMITS.style),
   })
 }
 
@@ -129,6 +158,7 @@ export function parseBook(body: unknown): Book {
   const now = Date.now()
   const nodes = b.nodes === undefined ? [] : arr(b.nodes, 'nodes').map(parseNode)
   const links = b.links === undefined ? [] : arr(b.links, 'links').map(parseLink)
+  const groups = b.groups === undefined ? [] : arr(b.groups, 'groups').map(parseGroup)
   return {
     id: id(b.id),
     title: text(b.title, 'title', LIMITS.title).trim() || 'Untitled',
@@ -139,6 +169,7 @@ export function parseBook(body: unknown): Book {
     updatedAt: num(b.updatedAt, 'updatedAt', now),
     nodes,
     links,
+    groups,
   }
 }
 

@@ -1,5 +1,5 @@
 import type { Book, LinkKind } from '../types'
-import { createBook, createLink, createNode } from './factory'
+import { createBook, createGroup, createLink, createNode } from './factory'
 
 /** A small public-domain example so the web isn't empty on first visit. */
 export function createSampleBook(): Book {
@@ -24,6 +24,15 @@ export function createSampleBook(): Book {
   const netherfield = p('Netherfield', 'Estate Bingley rents', 'Ch. 1', 320, -230)
   const pemberley = p('Pemberley', "Darcy's estate in Derbyshire", 'Ch. 16', 680, 40)
   const rosings = p('Rosings Park', "Lady Catherine's estate", 'Ch. 13', -220, 560)
+
+  // Groups: drawn as outlines around their members on the web.
+  const bennets = createGroup('The Bennet sisters', { style: 'hatch' })
+  const netherfieldParty = createGroup('Netherfield party', { style: 'dots' })
+  book.groups = [bennets, netherfieldParty]
+  elizabeth.groupId = bennets.id
+  jane.groupId = bennets.id
+  bingley.groupId = netherfieldParty.id
+  darcy.groupId = netherfieldParty.id
 
   book.nodes = [elizabeth, jane, darcy, bingley, wickham, collins, charlotte, catherine, longbourn, netherfield, pemberley, rosings]
 

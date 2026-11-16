@@ -38,7 +38,19 @@ export interface StoryNode {
   notes: string
   /** Ink style of the avatar: solid, outline, dots, stripes, hatch, half. */
   mark: string
+  /** The group (gang, family, faction…) this card belongs to, if any. */
+  groupId: string | null
   position: XY
+  createdAt: number
+}
+
+/** A named set of characters/places, drawn as an outline around its members. */
+export interface StoryGroup {
+  id: string
+  name: string
+  notes: string
+  /** Fill style of the outline: soft, hatch, dots, grid. */
+  style: string
   createdAt: number
 }
 
@@ -65,6 +77,7 @@ export interface Book {
   updatedAt: number
   nodes: StoryNode[]
   links: StoryLink[]
+  groups: StoryGroup[]
 }
 
 export interface LibraryData {
@@ -74,4 +87,5 @@ export interface LibraryData {
 
 export type BookPatch = Partial<Pick<Book, 'title' | 'author' | 'status' | 'pattern'>>
 export type NodePatch = Partial<Omit<StoryNode, 'id' | 'createdAt'>>
+export type GroupPatch = Partial<Pick<StoryGroup, 'name' | 'notes' | 'style'>>
 export type LinkPatch = Partial<Omit<StoryLink, 'id' | 'createdAt' | 'source' | 'target'>>

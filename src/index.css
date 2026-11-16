@@ -899,6 +899,62 @@ select {
   pointer-events: none;
 }
 
+/* Group outlines sit above the dots, below lines and cards. */
+.group-outlines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.group-tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  pointer-events: all;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 12px;
+  border: 1.5px solid var(--white);
+  border-radius: var(--wobble-pill);
+  background: var(--ink);
+  color: var(--white);
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, opacity 0.2s;
+}
+
+.group-tag:hover,
+.group-tag.is-selected {
+  background: var(--white);
+  color: var(--ink);
+}
+
+.group-tag-count {
+  min-width: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--ink);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.group-tag:hover .group-tag-count,
+.group-tag.is-selected .group-tag-count {
+  background: var(--ink);
+  color: var(--white);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .splash-book.is-loading {
     animation: none;
@@ -1431,6 +1487,65 @@ select {
 .link-end:hover {
   background: var(--ink);
   color: var(--white);
+}
+
+/* Group bits in the panel */
+.inline-create {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-create input,
+.inline-create select {
+  flex: 1;
+  min-width: 0;
+}
+
+.inline-create .btn {
+  padding: 5px 14px;
+}
+
+.group-style {
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 2px var(--ink);
+  background-color: var(--white);
+}
+
+.group-style-soft {
+  background-color: var(--paper-2);
+}
+
+.group-style-hatch {
+  background-image: repeating-linear-gradient(40deg, var(--ink) 0 1px, transparent 1px 5px);
+}
+
+.group-style-dots {
+  background-image: radial-gradient(var(--ink) 1.2px, transparent 1.6px);
+  background-size: 6px 6px;
+}
+
+.group-style-grid {
+  background-image:
+    linear-gradient(var(--ink) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ink) 1px, transparent 1px);
+  background-size: 7px 7px;
+}
+
+.member-role {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.9rem;
+}
+
+.added-note {
+  margin: 0;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.bring-in {
+  margin-top: 12px;
 }
 
 /* ---------------------------------------------------------------------------

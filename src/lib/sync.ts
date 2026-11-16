@@ -112,6 +112,12 @@ export function createSync(onStatus: (s: SaveStatus) => void) {
           return patch(`/api/links/${enc(action.id)}`, action.patch)
         case 'deleteLink':
           return request({ method: 'DELETE', url: `/api/links/${enc(action.id)}` })
+        case 'addGroup':
+          return request({ method: 'POST', url: `/api/books/${enc(action.bookId)}/groups`, body: action.group })
+        case 'updateGroup':
+          return patch(`/api/groups/${enc(action.id)}`, action.patch)
+        case 'deleteGroup':
+          return request({ method: 'DELETE', url: `/api/groups/${enc(action.id)}` })
         case 'hydrate':
           return // came from the server; nothing to send
       }

@@ -27,6 +27,14 @@ export const PersonIcon = (p: P) => (
   </svg>
 )
 
+export const GroupIcon = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="9" cy="8" r="3" />
+    <circle cx="17" cy="9.5" r="2.4" />
+    <path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 15.2a4.5 4.5 0 0 1 6 3.8" />
+  </svg>
+)
+
 export const ArrowLeftIcon = (p: P) => (
   <svg {...base} {...p}>
     <path d="M19 12H5M11 18l-6-6 6-6" />

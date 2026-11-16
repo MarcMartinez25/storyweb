@@ -1,5 +1,5 @@
-import type { Book, LinkKind, NodeKind, StoryLink, StoryNode, XY } from '../types'
-import { BOOK_PATTERNS, NODE_MARKS } from './constants'
+import type { Book, LinkKind, NodeKind, StoryGroup, StoryLink, StoryNode, XY } from '../types'
+import { BOOK_PATTERNS, GROUP_STYLES, NODE_MARKS } from './constants'
 
 export const uid = () => crypto.randomUUID()
 
@@ -17,6 +17,7 @@ export function createBook(title: string, author: string): Book {
     updatedAt: now,
     nodes: [],
     links: [],
+    groups: [],
   }
 }
 
@@ -29,10 +30,15 @@ export function createNode(kind: NodeKind, position: XY, fields: Partial<StoryNo
     firstSeen: '',
     notes: '',
     mark: kind === 'place' ? 'outline' : pick(NODE_MARKS),
+    groupId: null,
     position,
     createdAt: Date.now(),
     ...fields,
   }
+}
+
+export function createGroup(name = '', fields: Partial<StoryGroup> = {}): StoryGroup {
+  return { id: uid(), name, notes: '', style: pick(GROUP_STYLES), createdAt: Date.now(), ...fields }
 }
 
 export function createLink(

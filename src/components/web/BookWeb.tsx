@@ -12,13 +12,14 @@ import {
   type OnConnectEnd,
 } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Book, LinkKind, NodeKind } from '../../types'
-import { createLink, createNode, findOpenSpot } from '../../lib/factory'
+import type { Book, LinkKind, NodeKind, StoryGroup } from '../../types'
+import { createGroup, createLink, createNode, findOpenSpot } from '../../lib/factory'
 import { useLibrary } from '../../store/library'
-import { ArrowLeftIcon, PersonIcon, PinIcon, SearchIcon } from '../Icons'
+import { ArrowLeftIcon, GroupIcon, PersonIcon, PinIcon, SearchIcon } from '../Icons'
 import { OpenBook } from '../Doodles'
 import { TopNav } from '../TopNav'
 import { DetailPanel } from './DetailPanel'
+import { GroupOutlines } from './GroupOutlines'
 import { FloatingEdge } from './FloatingEdge'
 import { ParallaxDots } from './ParallaxDots'
 import { StoryNodeCard } from './StoryNodeCard'
@@ -27,6 +28,10 @@ import type { FlowEdge, FlowNode, Selection } from './flowTypes'
 const nodeTypes: NodeTypes = { story: StoryNodeCard }
 const edgeTypes: EdgeTypes = { floating: FloatingEdge }
 const PANEL_WIDTH = 380 // .detail-panel width plus the gap beside it, see index.css
+/** A group nobody named, described or joined: safe to tidy away. */
+const isAbandoned = (g: StoryGroup, book: Book) =>
+  !g.name.trim() && !g.notes.trim() && !book.nodes.some((n) => n.groupId === g.id)
+
 const isPhone = () => window.innerWidth <= 760 // matches the small-screen breakpoint in index.css
 
 export function BookWeb({ book }: { book: Book }) {
@@ -46,17 +51,44 @@ function BookWebInner({ book }: { book: Book }) {
 
   const selectNode = useCallback((id: string) => setSelection({ type: 'node', id }), [])
   const selectLink = useCallback((id: string) => setSelection({ type: 'link', id }), [])
+  const selectGroup = useCallback((id: string) => setSelection({ type: 'group', id }), [])
+
+  // A group made with "+ Group" and then abandoned (no name, nobody in it) is tidied away
+  // as soon as you look at something else, so it doesn't linger invisibly.
+  const lastSelection = useRef<Selection>(null)
+  useEffect(() => {
+    const prev = lastSelection.current
+    lastSelection.current = selection
+    if (prev?.type !== 'group' || (selection?.type === 'group' && selection.id === prev.id)) return
+    const g = book.groups.find((x) => x.id === prev.id)
+    if (g && isAbandoned(g, book)) dispatch({ type: 'deleteGroup', bookId: book.id, id: g.id })
+  }, [selection, book, dispatch])
+
+  // Same tidy-up for any left behind last time (e.g. the tab was closed with the panel open).
+  const tidiedOnOpen = useRef(false)
+  useEffect(() => {
+    if (tidiedOnOpen.current) return
+    tidiedOnOpen.current = true
+    for (const g of book.groups) {
+      if (isAbandoned(g, book)) dispatch({ type: 'deleteGroup', bookId: book.id, id: g.id })
+    }
+  }, [book, dispatch])
 
   // --- search: dim everything that doesn't match -------------------------------
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return null
+    const groupName = new Map(book.groups.map((g) => [g.id, g.name]))
     return new Set(
       book.nodes
-        .filter((n) => `${n.name} ${n.role} ${n.notes} ${n.firstSeen}`.toLowerCase().includes(q))
+        .filter((n) =>
+          `${n.name} ${n.role} ${n.notes} ${n.firstSeen} ${(n.groupId && groupName.get(n.groupId)) || ''}`
+            .toLowerCase()
+            .includes(q),
+        )
         .map((n) => n.id),
     )
-  }, [book.nodes, query])
+  }, [book.nodes, book.groups, query])
 
   const linkCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -145,6 +177,13 @@ function BookWebInner({ book }: { book: Book }) {
     }
   }
 
+  const addGroup = () => {
+    const group = createGroup()
+    dispatch({ type: 'addGroup', bookId: book.id, group })
+    setQuery('')
+    selectGroup(group.id)
+  }
+
   const connect = useCallback(
     (source: string, target: string) => {
       if (source === target) return
@@ -227,6 +266,9 @@ function BookWebInner({ book }: { book: Book }) {
         <button type="button" className="btn secondary" onClick={() => addNode('place')}>
           <PinIcon /> <span>Place</span>
         </button>
+        <button type="button" className="btn secondary" onClick={addGroup}>
+          <GroupIcon /> <span>Group</span>
+        </button>
       </TopNav>
 
       <div className="web-body">
@@ -262,6 +304,12 @@ function BookWebInner({ book }: { book: Book }) {
               colorMode="dark"
             >
               <ParallaxDots />
+              <GroupOutlines
+                groups={book.groups}
+                selectedId={selection?.type === 'group' ? selection.id : null}
+                matches={matches}
+                onSelect={selectGroup}
+              />
               <Controls showInteractive={false} position="bottom-right" />
             </ReactFlow>
 
@@ -300,6 +348,7 @@ function BookWebInner({ book }: { book: Book }) {
           selection={selection}
           onSelectNode={focusNode}
           onSelectLink={selectLink}
+          onSelectGroup={selectGroup}
           onClose={() => setSelection(null)}
         />
       </div>

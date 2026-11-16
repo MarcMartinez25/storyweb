@@ -3,6 +3,9 @@ import { LINK_KIND_IDS, type LinkKind } from '../types'
 /** Ink styles for a character's avatar (see .mark-* in index.css). */
 export const NODE_MARKS = ['solid', 'outline', 'dots', 'stripes', 'hatch', 'half']
 
+/** Fill styles for a group's outline on the web (see GroupOutlines). */
+export const GROUP_STYLES = ['soft', 'hatch', 'dots', 'grid']
+
 /** Patterns for book covers (see .pattern-* in index.css). */
 export const BOOK_PATTERNS = ['ink', 'stripes', 'dots', 'checks', 'waves', 'grid']
 

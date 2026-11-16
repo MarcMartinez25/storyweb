@@ -16,4 +16,4 @@ export type LinkEdgeData = {
 export type FlowNode = Node<StoryNodeData, 'story'>
 export type FlowEdge = Edge<LinkEdgeData, 'floating'>
 
-export type Selection = { type: 'node' | 'link'; id: string } | null
+export type Selection = { type: 'node' | 'link' | 'group'; id: string } | null

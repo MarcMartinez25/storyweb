@@ -6,6 +6,7 @@ Black-and-white and hand-drawn, like ink on paper.
 - **Bookshelf**: add the books you're reading; mark them finished, change their cover pattern.
 - **A web per book**: characters and places are cards on an ink-black canvas you can pan, zoom and rearrange.
 - **Connections**: link any two cards (family, romance, friends, rivals, "lives here"…). Each type has its own line style, and you can add your own label and notes.
+- **Groups**: put people in a gang, family or faction. Each group is drawn as a hand-drawn outline around its members (it follows them as you drag), with a name tab you can click. From a group you can add a brand-new member, who appears right next to the others, or bring in someone already on the web. Each character's panel has a Group picker too.
 - **Quick adds while reading**: from any character, "Connect to… → Someone new" creates the new person *and* the relationship in one go.
 - **Find someone**: search dims everything except matching cards; Enter jumps to the first match.
 
@@ -57,11 +58,11 @@ To set it up from scratch:
 
 - **Client**: React 19 + TypeScript + Vite, [React Flow](https://reactflow.dev) for the canvas
   - `src/store/`: reducer + context. Edits apply instantly, then `src/lib/sync.ts` sends them to the API in order, merging rapid edits (typing, dragging) and retrying if the server is unreachable. The top nav shows *All saved / Saving… / Offline*.
-  - `src/components/Bookshelf.tsx`: the shelf; `src/components/web/`: the per-book canvas (`BookWeb`, `StoryNodeCard`, `FloatingEdge`, `ParallaxDots`, `DetailPanel`)
+  - `src/components/Bookshelf.tsx`: the shelf; `src/components/web/`: the per-book canvas (`BookWeb`, `StoryNodeCard`, `FloatingEdge`, `GroupOutlines`, `ParallaxDots`, `DetailPanel`)
   - `src/components/Doodles.tsx`: the hand-drawn SVG illustrations; `src/lib/shapes.ts`: seeded blob/dot generators
 - **Server**: `server/` (Express 5 + `node:sqlite`)
   - `db.ts`: schema migrations (tracked with `PRAGMA user_version`) and queries
-  - `routes.ts`: REST API (`GET /api/library`, `POST/PATCH/DELETE` for books, nodes, links; `PUT /api/library` replaces everything and is used for the one-time browser-data import)
+  - `routes.ts`: REST API (`GET /api/library`, `POST/PATCH/DELETE` for books, nodes, groups, links; `PUT /api/library` replaces everything and is used for the one-time browser-data import)
   - `validate.ts`: request validation
 - `src/types.ts` is shared by both sides.
 - Data saved by the earlier browser-only version (localStorage) is imported into the database automatically the first time the app loads against an empty database.

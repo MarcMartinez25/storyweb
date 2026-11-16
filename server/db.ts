@@ -4,9 +4,11 @@ import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import type {
   Book,
   BookPatch,
+  GroupPatch,
   LibraryData,
   LinkPatch,
   NodePatch,
+  StoryGroup,
   StoryLink,
   StoryNode,
 } from '../src/types.ts'
@@ -64,6 +66,19 @@ const MIGRATIONS = [
   );
   CREATE INDEX links_book ON links(book_id);
   `,
+  // v2: groups (gangs, families, factions…). A card belongs to at most one; deleting a group just ungroups.
+  `
+  CREATE TABLE node_groups (
+    id          TEXT PRIMARY KEY,
+    book_id     TEXT    NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    name        TEXT    NOT NULL DEFAULT '',
+    notes       TEXT    NOT NULL DEFAULT '',
+    style       TEXT    NOT NULL DEFAULT 'soft',
+    created_at  INTEGER NOT NULL
+  );
+  CREATE INDEX node_groups_book ON node_groups(book_id);
+  ALTER TABLE nodes ADD COLUMN group_id TEXT REFERENCES node_groups(id) ON DELETE SET NULL;
+  `,
 ]
 
 export function openDb(path: string): DatabaseSync {
@@ -109,6 +124,7 @@ const toBook = (r: Row): Book => ({
   updatedAt: Number(r.updated_at),
   nodes: [],
   links: [],
+  groups: [],
 })
 
 const toNode = (r: Row): StoryNode => ({
@@ -119,7 +135,16 @@ const toNode = (r: Row): StoryNode => ({
   firstSeen: r.first_seen as string,
   notes: r.notes as string,
   mark: r.mark as string,
+  groupId: (r.group_id as string | null) ?? null,
   position: { x: Number(r.x), y: Number(r.y) },
+  createdAt: Number(r.created_at),
+})
+
+const toGroup = (r: Row): StoryGroup => ({
+  id: r.id as string,
+  name: r.name as string,
+  notes: r.notes as string,
+  style: r.style as string,
   createdAt: Number(r.created_at),
 })
 
@@ -152,7 +177,16 @@ function setClause(patch: Record<string, unknown>, columns: Record<string, strin
 }
 
 const BOOK_COLUMNS = { title: 'title', author: 'author', status: 'status', pattern: 'pattern' }
-const NODE_COLUMNS = { kind: 'kind', name: 'name', role: 'role', firstSeen: 'first_seen', notes: 'notes', mark: 'mark' }
+const NODE_COLUMNS = {
+  kind: 'kind',
+  name: 'name',
+  role: 'role',
+  firstSeen: 'first_seen',
+  notes: 'notes',
+  mark: 'mark',
+  groupId: 'group_id',
+}
+const GROUP_COLUMNS = { name: 'name', notes: 'notes', style: 'style' }
 const LINK_COLUMNS = { kind: 'kind', label: 'label', notes: 'notes' }
 
 // ---------------------------------------------------------------------------
@@ -167,8 +201,12 @@ export function createStore(db: DatabaseSync) {
      VALUES ($id, $title, $author, $status, $pattern, $createdAt, $updatedAt)`,
   )
   const insertNodeStmt = db.prepare(
-    `INSERT INTO nodes (id, book_id, kind, name, role, first_seen, notes, mark, x, y, created_at)
-     VALUES ($id, $bookId, $kind, $name, $role, $firstSeen, $notes, $mark, $x, $y, $createdAt)`,
+    `INSERT INTO nodes (id, book_id, kind, name, role, first_seen, notes, mark, group_id, x, y, created_at)
+     VALUES ($id, $bookId, $kind, $name, $role, $firstSeen, $notes, $mark, $groupId, $x, $y, $createdAt)`,
+  )
+  const insertGroupStmt = db.prepare(
+    `INSERT INTO node_groups (id, book_id, name, notes, style, created_at)
+     VALUES ($id, $bookId, $name, $notes, $style, $createdAt)`,
   )
   const insertLinkStmt = db.prepare(
     `INSERT INTO links (id, book_id, source, target, kind, label, notes, created_at)
@@ -180,10 +218,22 @@ export function createStore(db: DatabaseSync) {
     if (!db.prepare('SELECT 1 FROM books WHERE id = ?').get(bookId)) throw new HttpError(404, 'book not found')
   }
 
-  const bookOf = (table: 'nodes' | 'links', id: string) => {
+  const bookOf = (table: 'nodes' | 'links' | 'node_groups', id: string) => {
     const row = db.prepare(`SELECT book_id FROM ${table} WHERE id = ?`).get(id) as { book_id: string } | undefined
-    if (!row) throw new HttpError(404, `${table === 'nodes' ? 'node' : 'link'} not found`)
+    if (!row) throw new HttpError(404, `${{ nodes: 'node', links: 'link', node_groups: 'group' }[table]} not found`)
     return row.book_id
+  }
+
+  /** A card can only join a group from its own book. */
+  const requireGroupInBook = (groupId: string | null | undefined, bookId: string) => {
+    if (!groupId) return
+    if (!db.prepare('SELECT 1 FROM node_groups WHERE id = ? AND book_id = ?').get(groupId, bookId)) {
+      throw new HttpError(400, 'group must belong to the same book')
+    }
+  }
+
+  function insertGroup(bookId: string, g: StoryGroup) {
+    insertGroupStmt.run({ id: g.id, bookId, name: g.name, notes: g.notes, style: g.style, createdAt: g.createdAt })
   }
 
   function insertBook(b: Book) {
@@ -199,6 +249,7 @@ export function createStore(db: DatabaseSync) {
   }
 
   function insertNode(bookId: string, n: StoryNode) {
+    requireGroupInBook(n.groupId, bookId)
     insertNodeStmt.run({
       id: n.id,
       bookId,
@@ -208,6 +259,7 @@ export function createStore(db: DatabaseSync) {
       firstSeen: n.firstSeen,
       notes: n.notes,
       mark: n.mark,
+      groupId: n.groupId,
       x: n.position.x,
       y: n.position.y,
       createdAt: n.createdAt,
@@ -242,12 +294,16 @@ export function createStore(db: DatabaseSync) {
       for (const r of db.prepare('SELECT * FROM links ORDER BY created_at').all() as Row[]) {
         byId.get(r.book_id as string)?.links.push(toLink(r))
       }
+      for (const r of db.prepare('SELECT * FROM node_groups ORDER BY created_at').all() as Row[]) {
+        byId.get(r.book_id as string)?.groups.push(toGroup(r))
+      }
       return { version: 1, books }
     },
 
     createBook(b: Book) {
       transaction(db, () => {
         insertBook(b)
+        for (const g of b.groups) insertGroup(b.id, g)
         for (const n of b.nodes) insertNode(b.id, n)
         for (const l of b.links) insertLink(b.id, l)
       })
@@ -275,6 +331,7 @@ export function createStore(db: DatabaseSync) {
 
     updateNode(id: string, patch: NodePatch) {
       const bookId = bookOf('nodes', id)
+      requireGroupInBook(patch.groupId, bookId)
       const { sql, params } = setClause(patch, NODE_COLUMNS)
       transaction(db, () => {
         db.prepare(`UPDATE nodes SET ${sql} WHERE id = $id`).run({ ...params, id })
@@ -289,6 +346,28 @@ export function createStore(db: DatabaseSync) {
         db.prepare('DELETE FROM nodes WHERE id = ?').run(id) // links cascade
         touchBook.run({ now: Date.now(), id: row.book_id })
       })
+    },
+
+    createGroup(bookId: string, g: StoryGroup) {
+      requireBook(bookId)
+      transaction(db, () => {
+        insertGroup(bookId, g)
+        touchBook.run({ now: Date.now(), id: bookId })
+      })
+    },
+
+    updateGroup(id: string, patch: GroupPatch) {
+      const bookId = bookOf('node_groups', id)
+      const { sql, params } = setClause(patch, GROUP_COLUMNS)
+      transaction(db, () => {
+        db.prepare(`UPDATE node_groups SET ${sql} WHERE id = $id`).run({ ...params, id })
+        touchBook.run({ now: Date.now(), id: bookId })
+      })
+    },
+
+    /** Members stay on the web; their group_id is cleared by the foreign key. */
+    deleteGroup(id: string) {
+      db.prepare('DELETE FROM node_groups WHERE id = ?').run(id)
     },
 
     createLink(bookId: string, l: StoryLink) {
@@ -318,6 +397,7 @@ export function createStore(db: DatabaseSync) {
         db.exec('DELETE FROM books') // cascades to nodes and links
         for (const b of data.books) {
           insertBook(b)
+          for (const g of b.groups) insertGroup(b.id, g)
           for (const n of b.nodes) insertNode(b.id, n)
           for (const l of b.links) insertLink(b.id, l)
         }

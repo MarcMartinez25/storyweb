@@ -4,6 +4,8 @@ import {
   HttpError,
   parseBook,
   parseBookPatch,
+  parseGroup,
+  parseGroupPatch,
   parseLibrary,
   parseLink,
   parseLinkPatch,
@@ -54,6 +56,20 @@ export function apiRouter(store: Store): Router {
   })
   api.delete('/nodes/:id', (req, res) => {
     store.deleteNode(req.params.id)
+    res.status(204).end()
+  })
+
+  // Groups
+  api.post('/books/:bookId/groups', (req, res) => {
+    store.createGroup(req.params.bookId, parseGroup(req.body))
+    res.status(201).end()
+  })
+  api.patch('/groups/:id', (req, res) => {
+    store.updateGroup(req.params.id, parseGroupPatch(req.body))
+    res.status(204).end()
+  })
+  api.delete('/groups/:id', (req, res) => {
+    store.deleteGroup(req.params.id)
     res.status(204).end()
   })
 
