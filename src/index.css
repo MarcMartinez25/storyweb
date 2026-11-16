@@ -961,7 +961,31 @@ select {
   }
 }
 
-/* The book title is written large on the canvas, behind the web. */
+/* The book title, written on the map above the web (see MapTitle). */
+.map-title {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  pointer-events: none;
+  text-align: center;
+  color: var(--white);
+  white-space: nowrap;
+}
+
+.map-title h1 {
+  font-size: 3.4rem;
+  line-height: 1.05;
+  -webkit-text-stroke: 0.8px currentColor;
+}
+
+.map-title p {
+  margin: 4px 0 0;
+  font-size: 1.25rem;
+  opacity: 0.65;
+}
+
+/* Title for an empty web, pinned to the top of the canvas. */
 .canvas-title {
   position: absolute;
   z-index: 0;

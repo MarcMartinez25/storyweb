@@ -3,6 +3,7 @@ import {
   Controls,
   ReactFlow,
   ReactFlowProvider,
+  useNodesInitialized,
   useNodesState,
   useReactFlow,
   type Connection,
@@ -20,6 +21,8 @@ import { OpenBook } from '../Doodles'
 import { TopNav } from '../TopNav'
 import { DetailPanel } from './DetailPanel'
 import { GroupOutlines } from './GroupOutlines'
+import { MapTitle } from './MapTitle'
+import { cardBounds, TITLE_GAP, TITLE_HEIGHT } from './titleLayout'
 import { FloatingEdge } from './FloatingEdge'
 import { ParallaxDots } from './ParallaxDots'
 import { StoryNodeCard } from './StoryNodeCard'
@@ -225,6 +228,30 @@ function BookWebInner({ book }: { book: Book }) {
     revealOnPhone(x + (n.measured.width ?? 200) / 2, y + (n.measured.height ?? 56) / 2, zoom)
   }
 
+  /** Like fit-view, but leaves room above the cards for the book title written on the map. */
+  const fitAll = useCallback(
+    (duration = 0) => {
+      const b = cardBounds(rf.getNodes())
+      const el = canvasRef.current
+      if (!b || !el) return void rf.fitView({ duration })
+      const top = b.y - TITLE_GAP - TITLE_HEIGHT
+      const w = Math.max(b.width, 320)
+      const h = b.y + b.height - top
+      const pad = 1.3
+      const zoom = Math.max(0.2, Math.min(1.1, el.clientWidth / (w * pad), el.clientHeight / (h * pad)))
+      void rf.setCenter(b.x + b.width / 2, top + h / 2, { zoom, duration })
+    },
+    [rf],
+  )
+
+  const nodesInitialized = useNodesInitialized()
+  const didInitialFit = useRef(false)
+  useEffect(() => {
+    if (!nodesInitialized || didInitialFit.current) return
+    didInitialFit.current = true
+    fitAll()
+  }, [nodesInitialized, fitAll])
+
   const focusNode = (id: string) => {
     selectNode(id)
     if (isPhone()) revealNode(id, Math.max(rf.getZoom(), 0.9))
@@ -296,8 +323,6 @@ function BookWebInner({ book }: { book: Book }) {
               connectionMode={ConnectionMode.Loose}
               connectionLineStyle={{ stroke: '#fff', strokeWidth: 2, strokeDasharray: '4 6', strokeLinecap: 'round' }}
               deleteKeyCode={null}
-              fitView
-              fitViewOptions={{ padding: 0.3, maxZoom: 1.1 }}
               minZoom={0.2}
               maxZoom={2}
               proOptions={{ hideAttribution: true }}
@@ -310,16 +335,24 @@ function BookWebInner({ book }: { book: Book }) {
                 matches={matches}
                 onSelect={selectGroup}
               />
-              <Controls showInteractive={false} position="bottom-right" />
+              <Controls showInteractive={false} position="bottom-right" onFitView={() => fitAll(400)} />
+              <MapTitle>
+                <h1>{book.title}</h1>
+                <p>
+                  {book.author && <>by {book.author} · </>}
+                  {characters} {characters === 1 ? 'character' : 'characters'} · {places}{' '}
+                  {places === 1 ? 'place' : 'places'}
+                </p>
+              </MapTitle>
             </ReactFlow>
 
-            <div className="canvas-title" aria-hidden={book.nodes.length > 0}>
-              <h1>{book.title}</h1>
-              <p>
-                {book.author && <>by {book.author} · </>}
-                {characters} {characters === 1 ? 'character' : 'characters'} · {places} {places === 1 ? 'place' : 'places'}
-              </p>
-            </div>
+            {/* With an empty web there's nothing to write the title above, so it sits at the top. */}
+            {book.nodes.length === 0 && (
+              <div className="canvas-title">
+                <h1>{book.title}</h1>
+                {book.author && <p>by {book.author}</p>}
+              </div>
+            )}
 
             {book.nodes.length === 0 && (
               <div className="empty-web">
