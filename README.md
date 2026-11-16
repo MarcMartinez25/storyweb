@@ -32,6 +32,12 @@ Other scripts: `npm run build` (type-check + production build), `npm start` (pro
 The app is a single service: Express serves the API under `/api` and the built React app for everything else.
 `railway.json` already sets the build command, start command and health check.
 
+**Live:** https://storyweb-production-9d7c6398.up.railway.app. The Railway service is connected to this
+repo, so **every push to `main` deploys automatically**. (`railway up` from this folder also works for
+deploying uncommitted changes.)
+
+To set it up from scratch:
+
 1. Create a service from this repo (or `railway up` from this folder).
 2. **Attach a volume** to the service, mounted at e.g. `/data`. This is what keeps your data across deploys.
    The server automatically stores the database in the volume (it reads `RAILWAY_VOLUME_MOUNT_PATH`),
